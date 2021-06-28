@@ -79,7 +79,7 @@ inline time_point_t runtime_nanotime() { return clock_t::now(); }
 #define RUNTIME_COUNT(start) \
 std::chrono::duration_cast<std::chrono::nanoseconds>(runtime_nanotime() - (start)).count()
 
-struct mutex {
+typedef struct mutex {
   void lock() {
     lock_slow();
   }
@@ -222,6 +222,6 @@ struct mutex {
 
   std::atomic<int> state;
   std::atomic<int> sema;
-};
+} mutex;
 NAMESPACE_END(XQ)
 #endif //_MUTEX_HPP_
