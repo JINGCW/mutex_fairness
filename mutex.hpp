@@ -55,6 +55,13 @@ uint16_t operator op(type1 s1,type2 s2) \
 OPERATOR_FUNC(|, mutex_state, mutex_state)
 OPERATOR_FUNC(==, int, mutex_state)
 OPERATOR_FUNC(&, int, mutex_state)
+OPERATOR_FUNC(>>, int, mutex_state)
+OPERATOR_FUNC(|, int, mutex_state)
+OPERATOR_FUNC(<<, int, mutex_state)
+OPERATOR_FUNC(-, mutex_state,int)
+OPERATOR_FUNC(^, int,mutex_state)
+OPERATOR_FUNC(+, int,mutex_state)
+//OPERATOR_FUNC(-, int,mutex_state)
 
 #define STATE(name) mutex_state::name
 #define LOCKED STATE(MutexLocked)
@@ -110,7 +117,7 @@ typedef struct mutex {
       auto state_new = state_old;
       // Don't try to acquire starving mutex, state_new arriving goroutines must queue.
       if ((state_old & STARVE) == 0)
-        state_new |= LOCKED;
+        state_new |= XQ_CAST(uint16_t ,LOCKED);
 
       if ((state_old & (LOCKED | STARVE)) != 0)
         state_new += 1 << SHIFT;
@@ -119,7 +126,7 @@ typedef struct mutex {
       // Unlock expects that starving mutex has waiters, which will not
       // be true in this case.
       if (starving && (state_old & LOCKED) != 0)
-        state_new |= STARVE;
+        state_new |= XQ_CAST(uint16_t,STARVE);
 
       if (awoke) {
         // The goroutine has been woken from sleep,
@@ -161,7 +168,7 @@ typedef struct mutex {
             // Starvation mode is so inefficient, that two goroutines
             // can go lock-step infinitely once they switch mutex
             // to starvation mode.
-            delta -= STARVE;
+            delta -= XQ_CAST(uint16_t,STARVE);
           }
           state.fetch_add(delta);
           break;
@@ -176,7 +183,7 @@ typedef struct mutex {
 
   void Unlock() {
     // Fast path: drop lock bit.
-    auto state_new = state.fetch_add(-LOCKED);
+    auto state_new = state.fetch_add(-XQ_CAST(uint16_t,LOCKED));
     if (state_new != 0) {
       // Outlined slow path to allow inlining the fast path.
       // To hide unlockSlow during tracing we skip one extra frame when tracing GoUnblock.
